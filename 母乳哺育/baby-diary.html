@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>寶寶成長日記</title>
+  <style>
+    body {
+      font-family: "Noto Sans TC", sans-serif;
+      background-color: #fffaf2;
+      margin: 0;
+      padding: 1rem;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #ff6f61;
+      font-size: 1.8rem;
+    }
+    .center {
+      text-align: center;
+      margin-top: 1rem;
+    }
+    .top-right {
+      display: flex;
+      justify-content: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    #diaryForm, #diaryList {
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 1rem auto;
+      max-width: 800px;
+    }
+    #diaryForm {
+      display: none;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 0.7rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #ffb6b9;
+      color: white;
+      border: none;
+      padding: 0.8rem 1.5rem;
+      font-size: 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #ff6f61;
+    }
+    .entry {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      max-width: 800px;
+      margin: 1rem auto;
+    }
+    .entry img {
+      max-width: 100%;
+      border-radius: 6px;
+      margin-top: 0.5rem;
+    }
+    .entry small {
+      color: #999;
+    }
+    .actions {
+      margin-top: 0.5rem;
+    }
+    .external-browser-tip {
+      background: #fff3cd;
+      color: #856404;
+      padding: 0.8rem;
+      text-align: center;
+      border-radius: 6px;
+      max-width: 600px;
+      margin: 1rem auto;
+      font-size: 0.9rem;
+    }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCs-JeR-ioFYviTO0Jfzp5rzziWzQurWmw",
+      authDomain: "baby-diary-187a7.firebaseapp.com",
+      projectId: "baby-diary-187a7",
+      storageBucket: "baby-diary-187a7.appspot.com",
+      messagingSenderId: "116699023811",
+      appId: "1:116699023811:web:a0c67508659e447089d576"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    let currentUser = null;
+
+    async function saveDiary(e) {
+      e.preventDefault();
+      const date = document.getElementById("date").value;
+      const title = document.getElementById("title").value;
+      const content = document.getElementById("content").value;
+      const fileInput = document.getElementById("photo");
+      const file = fileInput && !fileInput.disabled ? fileInput.files[0] : null;
+
+      let imageUrl = "";
+      if (file) {
+        const storageRef = ref(storage, `diary-photos/${Date.now()}-${file.name}`);
+        await uploadBytes(storageRef, file);
+        imageUrl = await getDownloadURL(storageRef);
+      }
+
+      await addDoc(collection(db, "diaryEntries"), {
+        date,
+        title,
+        content,
+        imageUrl,
+        uid: currentUser.uid,
+        author: currentUser.displayName,
+        createdAt: serverTimestamp()
+      });
+
+      document.getElementById("diaryForm").reset();
+      document.getElementById("diaryForm").style.display = "none";
+      document.getElementById("diaryList").style.display = "block";
+      document.getElementById("toggleForm").textContent = "➕ 新增日記";
+      loadDiaries();
+    }
+
+    async function loadDiaries() {
+      const list = document.getElementById("diaryList");
+      list.innerHTML = "";
+
+      const querySnapshot = await getDocs(collection(db, "diaryEntries"));
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const entry = document.createElement("div");
+        entry.className = "entry";
+
+        entry.innerHTML = `
+          <h3>${data.title}</h3>
+          <small>${data.date} ｜ 👤 ${data.author}</small>
+          <p>${data.content}</p>
+          ${data.imageUrl ? `<img src="${data.imageUrl}" alt="日記照片">` : ""}
+        `;
+
+        if (currentUser) {
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          const editBtn = document.createElement("button");
+          editBtn.textContent = "編輯";
+          editBtn.onclick = () => editEntry(docSnap.id, data, entry);
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.textContent = "刪除";
+          deleteBtn.onclick = async () => {
+            if (confirm("確定要刪除這篇日記嗎？")) {
+              await deleteDoc(doc(db, "diaryEntries", docSnap.id));
+              loadDiaries();
+            }
+          };
+
+          actions.appendChild(editBtn);
+          actions.appendChild(deleteBtn);
+          entry.appendChild(actions);
+        }
+
+        list.prepend(entry);
+      });
+    }
+
+    function editEntry(id, data, container) {
+      container.innerHTML = `
+        <form id="editForm">
+          <label>日期：<input type="date" id="editDate" value="${data.date}" required></label>
+          <label>標題：<input type="text" id="editTitle" value="${data.title}" required></label>
+          <label>內容：<textarea id="editContent" rows="4" required>${data.content}</textarea></label>
+          <label>更換照片：<input type="file" id="editPhoto" accept="image/*" capture="environment" disabled><span style="color:#999">（尚未啟用）</span></label>
+          <button type="submit">儲存修改</button>
+        </form>
+      `;
+
+      document.getElementById("editForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const newDate = document.getElementById("editDate").value;
+        const newTitle = document.getElementById("editTitle").value;
+        const newContent = document.getElementById("editContent").value;
+
+        await updateDoc(doc(db, "diaryEntries", id), {
+          date: newDate,
+          title: newTitle,
+          content: newContent
+        });
+
+        loadDiaries();
+      };
+    }
+
+    document.getElementById("loginBtn").onclick = async () => {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    };
+
+    document.getElementById("logoutBtn").onclick = () => signOut(auth);
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        document.getElementById("authArea").style.display = "none";
+        document.getElementById("contentArea").style.display = "block";
+        document.getElementById("welcome").innerText = `歡迎回來，${user.displayName} ♥`;
+        loadDiaries();
+      } else {
+        currentUser = null;
+        document.getElementById("authArea").style.display = "block";
+        document.getElementById("contentArea").style.display = "none";
+        document.getElementById("welcome").innerText = "";
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("diaryForm").addEventListener("submit", saveDiary);
+      document.getElementById("toggleForm").addEventListener("click", () => {
+        const form = document.getElementById("diaryForm");
+        const list = document.getElementById("diaryList");
+        const toggleBtn = document.getElementById("toggleForm");
+        const isVisible = form.style.display === "flex";
+        form.style.display = isVisible ? "none" : "flex";
+        list.style.display = isVisible ? "block" : "none";
+        toggleBtn.textContent = isVisible ? "➕ 新增日記" : "← 返回日記";
+      });
+    });
+  </script>
+</head>
+<body>
+  <h1>寶寶成長日記</h1>
+  <div class="center" id="authArea">
+    <p>請先登入才能查看與記錄日記</p>
+    <button id="loginBtn">使用 Google 登入</button>
+    <div class="external-browser-tip">
+      🔒 若您無法登入，請點選右下角 : 「在外部瀏覽器開啟」
+    </div>
+  </div>
+
+  <div id="contentArea" style="display:none;">
+    <div class="center">
+      <p id="welcome"></p>
+    </div>
+
+    <div class="top-right">
+      <button id="toggleForm">➕ 新增日記</button>
+    </div>
+
+    <form id="diaryForm">
+      <label>日期：<input type="date" id="date" required></label>
+      <label>標題：<input type="text" id="title" required></label>
+      <label>內容：<textarea id="content" rows="4" required></textarea></label>
+      <label>新增相片：<input type="file" id="photo" accept="image/*" disabled><span style="color:#999">（此功能尚未啟用）</span></label>
+      <button type="submit">儲存日記</button>
+    </form>
+
+    <div id="diaryList"></div>
+
+    <div class="center">
+      <button id="logoutBtn">登出</button>
+    </div>
+  </div>
+</body>
+</html>
