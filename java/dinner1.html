@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>晚飯決定助手</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        label {
+            font-size: 16px;
+            margin-bottom: 8px;
+            display: block;
+        }
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9ffe9;
+            border: 1px solid #28a745;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>今晚晚飯決定助手</h1>
+    <div class="container">
+        <form id="dinnerForm">
+            <label for="mood">你今天心情不錯嗎？(是/否)</label>
+            <input type="text" id="mood" required>
+
+            <label for="temperature">今天氣溫很冷嗎？(是/否)</label>
+            <input type="text" id="temperature" required>
+
+            <label for="clothing">你穿著厚重嗎？(是/否)</label>
+            <input type="text" id="clothing" required>
+
+            <label for="luckyNumber">請輸入你的幸運數字：</label>
+            <input type="number" id="luckyNumber" required>
+
+            <button type="button" onclick="calculateDinner()">提交</button>
+        </form>
+
+        <div id="result" class="result" style="display:none;"></div>
+    </div>
+<script>
+    function calculateDinner() {
+        const mood = document.getElementById("mood").value.trim().toLowerCase();
+        const temperature = document.getElementById("temperature").value.trim().toLowerCase();
+        const clothing = document.getElementById("clothing").value.trim().toLowerCase();
+        const luckyNumber = parseInt(document.getElementById("luckyNumber").value);
+
+        const luckyNumberType = (luckyNumber % 2 === 0) ? "偶數" : "奇數";
+
+        let recommendations = [];
+
+        // 使用 if-else 判斷條件
+        if (mood === "是") {
+            if (temperature === "是") {
+                if (clothing === "是") {
+                    recommendations = (luckyNumberType === "奇數")
+                        ? ["小羚火鍋，熱騰騰的，讓你感到溫暖！", "牛筋伯爵，幸福感滿滿！"]
+                        : ["粥公，清淡又溫暖！", "ㄎㄎ韓食，濃郁又飽滿！"];
+                } else {
+                    recommendations = (luckyNumberType === "奇數")
+                        ? ["翅炸鍋，暖伙又舒適！", "八方雲集，熱量滿分，讓你有活力！"]
+                        : ["地中海，濃郁的口感，讓你滿足！", "阿湯哥，脆皮與多汁的完美結合！"];
+                }
+            } else {
+                if (clothing === "是") {
+                    recommendations = (luckyNumberType === "奇數")
+                        ? ["a咖，享受熱氣騰騰的肉類！", "Simple fit，清爽又健康！"]
+                        : ["小羚火鍋，暖心又暖胃！", "六妹，方便又舒適！"];
+                } else {
+                    recommendations = (luckyNumberType === "奇數")
+                        ? ["蔬芙，清新又健康！", "食凡，清爽的選擇！"]
+                        : ["薩克廚房，精緻又美味！", "渝香園，提升幸福感！"];
+                }
+            }
+        } else {
+            if (temperature === "是") {
+                if (clothing === "是") {
+                    recommendations = (luckyNumberType === "奇數")
+                        ? ["翅炸鍋，溫暖又有安慰感！", "食凡，帶來好心情！"]
+                        : ["薩克廚房，濃郁暖心！", "阿湯哥，簡單又治癒！"];
+                } else {
+                    recommendations = (luckyNumberType === "奇數")
+                        ? ["薩克廚房，熱氣騰騰，讓你放鬆！", "中正雞場，熱量補充，帶來快樂！"]
+                        : ["豪記滷味，濃郁香氣撫慰心靈！", "蘭姐手工水餃，簡單又飽腹！"];
+                }
+            } else {
+                if (clothing === "是") {
+                    recommendations = (luckyNumberType === "奇數")
+                        ? ["即時樂，輕食又精緻！", "榕樹下，濃郁口味讓你滿足！"]
+                        : ["富成屋拉麵，湯頭濃厚令人放鬆！", "中正雞場，酥脆多汁，絕佳享受！"];
+                } else {
+                    recommendations = (luckyNumberType === "奇數")
+                        ? ["農閒時刻，治癒一切！", "錢伯鹽水雞，快速又簡單！"]
+                        : ["仙草奶酪，溫暖人心！", "蔬芙，清爽又健康！"];
+                }
+            }
+        }
+
+        // 顯示結果
+        const resultDiv = document.getElementById("result");
+        resultDiv.innerHTML = "推薦：<br>" + recommendations.map(item => `- ${item}`).join("<br>");
+        resultDiv.style.display = "block";
+    }
+</script>
+
+</body>
+</html>
